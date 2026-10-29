@@ -8,27 +8,27 @@ from tests.constants import ASSISTANCE_URL
 def test_no_action_without_request(make_assistance_agent, http_client):
     agent = make_assistance_agent([{"request": None}, {"request": "   "}, {}])
 
-    outcomes = [agent.handle_turn("¿Qué horario tenéis?").outcome for _ in range(3)]
+    outcomes = [agent.handle_turn("What are your opening hours?").outcome for _ in range(3)]
 
     assert outcomes == [ActionOutcome.NOT_REQUIRED] * 3
     assert http_client.sent_requests == []
 
 
 def test_registers_normalized_request(make_assistance_agent, http_client):
-    agent = make_assistance_agent([{"request": "  Cambiar\n la tarifa "}])
+    agent = make_assistance_agent([{"request": "  Change\n the plan "}])
 
-    result = agent.handle_turn("Quiero cambiar la tarifa")
+    result = agent.handle_turn("I want to change my plan")
 
     assert result.outcome == ActionOutcome.EXECUTED
-    assert result.action == AssistanceRequest("Cambiar la tarifa")
+    assert result.action == AssistanceRequest("Change the plan")
     (request,) = http_client.sent_requests
     assert request.url == ASSISTANCE_URL
-    assert request.headers["request"] == "Cambiar la tarifa"
-    assert json.loads(request.body) == {"request": "Cambiar la tarifa"}
+    assert request.headers["request"] == "Change the plan"
+    assert json.loads(request.body) == {"request": "Change the plan"}
 
 
 def test_same_request_is_not_sent_twice(make_assistance_agent, http_client):
-    agent = make_assistance_agent([{"request": "Cambiar la tarifa"}, {"request": "Cambiar  la tarifa"}])
+    agent = make_assistance_agent([{"request": "Change the plan"}, {"request": "Change  the plan"}])
 
     agent.handle_turn("...")
     result = agent.handle_turn("...")
@@ -38,7 +38,7 @@ def test_same_request_is_not_sent_twice(make_assistance_agent, http_client):
 
 
 def test_different_request_in_same_conversation_is_registered(make_assistance_agent, http_client):
-    agent = make_assistance_agent([{"request": "Cambiar la tarifa"}, {"request": "Dar de baja la línea 2"}])
+    agent = make_assistance_agent([{"request": "Change the plan"}, {"request": "Cancel line 2"}])
 
     agent.handle_turn("...")
     result = agent.handle_turn("...")

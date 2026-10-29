@@ -13,7 +13,7 @@ class TestParseIsoDate:
     def test_strips_surrounding_whitespace(self):
         assert parse_iso_date(" 2026-11-05 ") == date(2026, 11, 5)
 
-    @pytest.mark.parametrize("value", ["2026/11/05", "05-11-2026", "20261105", "2026-02-30", "mañana", ""])
+    @pytest.mark.parametrize("value", ["2026/11/05", "05-11-2026", "20261105", "2026-02-30", "tomorrow", ""])
     def test_rejects_other_formats_and_impossible_dates(self, value):
         with pytest.raises(InvalidFieldError):
             parse_iso_date(value)
@@ -42,7 +42,7 @@ class TestParsePositiveAmount:
 
 class TestParseText:
     def test_collapses_whitespace_and_newlines(self):
-        assert parse_text("  Cambiar\r\n  la   tarifa ") == "Cambiar la tarifa"
+        assert parse_text("  Change\r\n  the   plan ") == "Change the plan"
 
     @pytest.mark.parametrize("value", ["", "   ", "\n\t"])
     def test_blank_text_is_no_value(self, value):

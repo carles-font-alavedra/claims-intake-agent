@@ -35,16 +35,16 @@ from conversational_agents.models import ConversationModel, ParserModel
 
 factory = AgentFactory(Settings.from_env(), FakeHttpClient())
 agent = factory.debt_agent(
-    ConversationModel(["¿Cuándo podría pagar?", "Registrado, gracias."]),
+    ConversationModel(["When could you pay?", "Registered, thank you."]),
     ParserModel([
         {"commitment_date": None, "committed_amount": None},
         {"commitment_date": "2030-01-15", "committed_amount": 150},
     ]),
 )
 
-agent.handle_turn("Hola")                      # outcome = NOT_REQUIRED
-result = agent.handle_turn("El 15 de enero pago 150 €")  # outcome = EXECUTED
-result.reply                                   # "Registrado, gracias."
+agent.handle_turn("Hi")                      # outcome = NOT_REQUIRED
+result = agent.handle_turn("I will pay €150 on January 15")  # outcome = EXECUTED
+result.reply                                   # "Registered, thank you."
 ```
 
 ## Architecture
@@ -122,8 +122,8 @@ are equal and hashable, so deduplication is a plain `set`.
 
 **Two-level deduplication.**
 - Client side: the agent remembers actions executed **successfully** and does not repeat them.
-  Since comparison happens after normalization, `150` and `150.0`, or `"Cambiar  tarifa"` and
-  `"Cambiar tarifa"`, count as the same action.
+  Since comparison happens after normalization, `150` and `150.0`, or `"Change  plan"` and
+  `"Change plan"`, count as the same action.
 - Server side: every request carries a deterministic `Idempotency-Key` header
   (hash of conversation + action). It covers the case the agent's memory cannot:
   the request reaches the server but the response is lost (timeout) and is retried.
@@ -181,9 +181,9 @@ names". I implemented it that way, but it carries risks I would raise with the A
 team in a real setting:
 
 - **Header injection and encoding.** `request` is free text from the user: it can
-  contain line breaks or non-ASCII characters ("dirección"), and headers only allow
+  contain line breaks or non-ASCII characters ("Málaga"), and headers only allow
   printable ASCII. So values are normalized (whitespace and line breaks are
-  collapsed) and also percent-encoded (`direcci%C3%B3n`). The body keeps the
+  collapsed) and also percent-encoded (`M%C3%A1laga`). The body keeps the
   original value and is the source of truth.
 - **Underscores in names.** Proxies such as nginx drop headers containing `_` by
   default (`underscores_in_headers off`), so `commitment_date` might never arrive.

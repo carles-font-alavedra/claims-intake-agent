@@ -19,7 +19,7 @@ def make_debt_agent(http_client):
     def _make(parsed_turns: list[dict]) -> DebtAgent:
         integration = HttpIntegration(DEBT_URL, http_client, BearerTokenAuth(TEST_TOKEN))
         return DebtAgent(
-            ConversationModel([f"respuesta {i}" for i in range(len(parsed_turns))]),
+            ConversationModel([f"reply {i}" for i in range(len(parsed_turns))]),
             ParserModel(parsed_turns),
             integration,
             today=lambda: TODAY,
@@ -33,7 +33,7 @@ def make_assistance_agent(http_client):
     def _make(parsed_turns: list[dict]) -> AssistanceAgent:
         integration = HttpIntegration(ASSISTANCE_URL, http_client, BearerTokenAuth(TEST_TOKEN))
         return AssistanceAgent(
-            ConversationModel([f"respuesta {i}" for i in range(len(parsed_turns))]),
+            ConversationModel([f"reply {i}" for i in range(len(parsed_turns))]),
             ParserModel(parsed_turns),
             integration,
         )

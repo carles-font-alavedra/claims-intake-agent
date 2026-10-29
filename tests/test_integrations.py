@@ -37,11 +37,11 @@ class TestBuildRequest:
         assert request.headers["committed_amount"] == "150.5"
 
     def test_non_ascii_header_values_are_percent_encoded_but_body_keeps_original(self):
-        action = AssistanceRequest("Cambiar dirección")
+        action = AssistanceRequest("Move to Málaga")
         request = _integration(FakeHttpClient(), ASSISTANCE_URL).build_request(action, idempotency_key="k")
 
-        assert request.headers["request"] == "Cambiar direcci%C3%B3n"
-        assert request.json["request"] == "Cambiar dirección"
+        assert request.headers["request"] == "Move to M%C3%A1laga"
+        assert request.json["request"] == "Move to Málaga"
 
     def test_request_is_immutable(self):
         request = _integration(FakeHttpClient()).build_request(COMMITMENT, idempotency_key="k")

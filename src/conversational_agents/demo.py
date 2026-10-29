@@ -16,9 +16,9 @@ def _run(title: str, agent: BaseAgent, user_messages: list[str]) -> None:
     print(f"\n=== {title} ===")
     for message in user_messages:
         result = agent.handle_turn(message)
-        print(f"usuario: {message}")
-        print(f"agente:  {result.reply}")
-        print(f"         datos={dict(result.parsed_data)} -> acción: {result.outcome.value}")
+        print(f"user:  {message}")
+        print(f"agent: {result.reply}")
+        print(f"       data={dict(result.parsed_data)} -> action: {result.outcome.value}")
 
 
 def main() -> None:
@@ -30,10 +30,10 @@ def main() -> None:
     debt_agent = factory.debt_agent(
         ConversationModel(
             [
-                "Hola, le llamo por la deuda pendiente de 300 €. ¿Cuándo podría pagarla?",
-                "Perfecto. ¿Qué cantidad pagaría ese día?",
-                "Queda registrado su compromiso. ¡Gracias!",
-                "De nada, que tenga buen día.",
+                "Hello, I'm calling about your outstanding debt of €300. When could you pay it?",
+                "Great. How much would you pay that day?",
+                "Your commitment has been registered. Thank you!",
+                "You're welcome, have a nice day.",
             ]
         ),
         ParserModel(
@@ -45,15 +45,15 @@ def main() -> None:
             ]
         ),
     )
-    _run("DebtAgent", debt_agent, ["Hola", "La semana que viene", "Los 300 €", "Gracias"])
+    _run("DebtAgent", debt_agent, ["Hi", "Next week", "The full €300", "Thanks"])
 
     assistance_agent = factory.assistance_agent(
-        ConversationModel(["¿En qué puedo ayudarle?", "He registrado su solicitud, un agente le contactará."]),
-        ParserModel([{"request": None}, {"request": "  Cambiar la dirección de facturación "}]),
+        ConversationModel(["How can I help you?", "I've registered your request, an agent will contact you."]),
+        ParserModel([{"request": None}, {"request": "  Change billing address to Málaga "}]),
     )
-    _run("AssistanceAgent", assistance_agent, ["Hola", "Quiero cambiar la dirección de facturación"])
+    _run("AssistanceAgent", assistance_agent, ["Hi", "I want to change my billing address to Málaga"])
 
-    print(f"\n=== Requests construidas ({len(client.sent_requests)}) ===")
+    print(f"\n=== Requests built ({len(client.sent_requests)}) ===")
     for request in client.sent_requests:
         print(f"{request.method} {request.url}")
         for name, value in request.headers.items():

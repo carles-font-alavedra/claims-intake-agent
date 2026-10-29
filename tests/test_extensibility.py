@@ -39,7 +39,7 @@ class InMemoryQueueIntegration(Integration):
 def test_new_agent_and_integration_reuse_the_whole_lifecycle():
     queue = InMemoryQueueIntegration()
     agent = CallbackAgent(
-        ConversationModel(["¿A qué número?", "Le llamaremos", "Adiós"]),
+        ConversationModel(["Which number?", "We will call you", "Bye"]),
         ParserModel([{"phone": None}, {"phone": "600000000"}, {"phone": "600000000"}]),
         queue,
     )
