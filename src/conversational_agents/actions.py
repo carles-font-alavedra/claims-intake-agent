@@ -37,10 +37,20 @@ class AssistanceRequest(Action):
         return {"request": self.request}
 
 
-def idempotency_key(conversation_id: str, action: Action) -> str:
-    """Deterministic key so the server can discard retried requests."""
+def idempotency_key(conversation_id: str, action: Action, sequence: int = 0) -> str:
+    """Deterministic key so the server can discard retried requests.
+
+    `sequence` is the number of actions already executed in the conversation: a retry
+    after a failure keeps the same key, while re-sending an earlier action after a
+    different one (A -> B -> A) gets a new one.
+    """
     raw = json.dumps(
-        {"conversation": conversation_id, "action": type(action).__name__, "payload": action.to_payload()},
+        {
+            "conversation": conversation_id,
+            "sequence": sequence,
+            "action": type(action).__name__,
+            "payload": action.to_payload(),
+        },
         sort_keys=True,
     )
     return hashlib.sha256(raw.encode()).hexdigest()

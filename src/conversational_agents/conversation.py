@@ -10,6 +10,7 @@ from enum import Enum
 class Role(str, Enum):
     USER = "user"
     AGENT = "agent"
+    SYSTEM = "system"  # events the conversation model should know about, e.g. action outcomes
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,9 @@ class Conversation:
 
     def add_agent_message(self, content: str) -> None:
         self.messages.append(Message(Role.AGENT, content))
+
+    def add_system_message(self, content: str) -> None:
+        self.messages.append(Message(Role.SYSTEM, content))
 
     def __len__(self) -> int:
         return len(self.messages)

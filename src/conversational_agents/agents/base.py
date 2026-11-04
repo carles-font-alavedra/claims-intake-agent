@@ -22,7 +22,7 @@ T = TypeVar("T")
 
 class ActionOutcome(str, Enum):
     NOT_REQUIRED = "not_required"  # conditions not met yet
-    DUPLICATE = "duplicate"  # already executed in this conversation
+    DUPLICATE = "duplicate"  # same as the last action executed in this conversation
     EXECUTED = "executed"
     FAILED = "failed"  # will be retried if still required next turn
 
@@ -50,7 +50,8 @@ class BaseAgent(ABC):
         self._parser_model = parser_model
         self._integration = integration
         self._conversation = conversation if conversation is not None else Conversation()
-        self._executed_actions: set[Action] = set()
+        self._last_executed: Action | None = None
+        self._executed_count = 0
 
     @property
     def conversation(self) -> Conversation:
@@ -59,33 +60,41 @@ class BaseAgent(ABC):
     def handle_turn(self, user_message: str) -> TurnResult:
         self._conversation.add_user_message(user_message)
 
-        reply = self._conversation_model.answer_user(self._conversation)
-        self._conversation.add_agent_message(reply)
-
+        # Act first and reply last, so the reply can't claim something that failed.
         parsed_data = self._parser_model.parse_data(self._conversation)
         action = self.build_action(parsed_data)
+        outcome, result = self._run_action(action)
+        if outcome in (ActionOutcome.EXECUTED, ActionOutcome.FAILED):
+            self._conversation.add_system_message(f"{type(action).__name__} {outcome.value}")
 
+        reply = self._conversation_model.answer_user(self._conversation)
+        self._conversation.add_agent_message(reply)
+        return TurnResult(reply, parsed_data, action, outcome, result)
+
+    def _run_action(self, action: Action | None) -> tuple[ActionOutcome, ActionResult | None]:
         if action is None:
-            return TurnResult(reply, parsed_data, None, ActionOutcome.NOT_REQUIRED)
+            return ActionOutcome.NOT_REQUIRED, None
         if self._is_duplicate(action):
             logger.debug("Skipping duplicate %r", action)
-            return TurnResult(reply, parsed_data, action, ActionOutcome.DUPLICATE)
+            return ActionOutcome.DUPLICATE, None
 
-        result = self._integration.execute(action, idempotency_key=idempotency_key(self._conversation.id, action))
+        key = idempotency_key(self._conversation.id, action, self._executed_count)
+        result = self._integration.execute(action, idempotency_key=key)
         if not result.success:
-            return TurnResult(reply, parsed_data, action, ActionOutcome.FAILED, result)
+            # Not recorded as executed: it is retried (same key) if still required next turn.
+            return ActionOutcome.FAILED, result
 
-        # Only successful actions count: a failed one is retried in a later turn.
-        self._executed_actions.add(action)
-        return TurnResult(reply, parsed_data, action, ActionOutcome.EXECUTED, result)
+        self._last_executed = action
+        self._executed_count += 1
+        return ActionOutcome.EXECUTED, result
 
     @abstractmethod
     def build_action(self, parsed_data: Mapping[str, Any]) -> Action | None:
         """Return the action to execute, or None if the conditions are not met."""
 
     def _is_duplicate(self, action: Action) -> bool:
-        """Whether this exact action was already executed in this conversation."""
-        return action in self._executed_actions
+        """Whether this action is the latest one executed (the last decision is the one that counts)."""
+        return action == self._last_executed
 
     def _read_field(self, parsed_data: Mapping[str, Any], name: str, parse: Callable[[Any], T]) -> T | None:
         """Read a field, treating missing, null or invalid values as not provided."""

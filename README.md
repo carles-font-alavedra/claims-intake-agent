@@ -17,7 +17,7 @@ Requires Python 3.10 or later. No runtime dependencies.
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-pytest                       # 68 tests
+pytest                       # 73 tests
 ruff check . && ruff format --check .
 
 AGENTS_API_TOKEN=test_token_9f3a2c1d python -m conversational_agents.demo
@@ -87,17 +87,21 @@ BaseAgent ──decides──▶ Action ──delivered by──▶ Integration 
 ### Lifecycle of a turn (`BaseAgent.handle_turn`)
 
 ```
-ConversationModel  →  ParserModel  →  Agent  →  Action  →  HttpIntegration
-   (replies)        (extracts data)  (decides) (payload)      (sends)
+ParserModel  →  Agent  →  Action  →  HttpIntegration  →  ConversationModel
+(extracts data) (decides) (payload)      (sends)              (replies)
 ```
 
 1. The user's message is appended to the conversation.
-2. `ConversationModel.answer_user(conversation)` generates the reply, which is also appended.
-3. `ParserModel.parse_data(conversation)` returns a dict with the extracted data.
-4. `build_action(parsed_data)` validates, normalizes and decides. It is **the only
+2. `ParserModel.parse_data(conversation)` returns a dict with the extracted data.
+3. `build_action(parsed_data)` validates, normalizes and decides. It is **the only
    method each agent implements**, and it returns an `Action` or `None`.
-5. If the action was already executed successfully in this conversation, it is not resent (`DUPLICATE`).
-6. Otherwise it is executed through the `Integration`, which returns `EXECUTED` or `FAILED`.
+4. If the action equals the last one executed successfully in this conversation, it is not resent (`DUPLICATE`).
+5. Otherwise it is executed through the `Integration`, which returns `EXECUTED` or `FAILED`, and
+   the outcome is appended to the conversation as a `system` message (e.g. `PaymentCommitment failed`).
+6. `ConversationModel.answer_user(conversation)` generates the reply, which is also appended.
+
+The reply is generated **last** on purpose: the conversation model sees whether the action
+succeeded, so it never tells the user "registered" when the API call failed.
 
 The turn returns a `TurnResult` with the reply, the parsed data, the action and
 its outcome (`NOT_REQUIRED`, `DUPLICATE`, `EXECUTED` or `FAILED`). That way the
@@ -118,15 +122,17 @@ magic mocks (`unittest.mock.patch` does not appear in any test).
 
 **Actions are immutable value objects.** `PaymentCommitment` and
 `AssistanceRequest` are `dataclass(frozen=True)`: two actions with the same data
-are equal and hashable, so deduplication is a plain `set`.
+are equal, so deduplication is a plain `==` against the last executed action.
 
 **Two-level deduplication.**
-- Client side: the agent remembers actions executed **successfully** and does not repeat them.
-  Since comparison happens after normalization, `150` and `150.0`, or `"Change  plan"` and
-  `"Change plan"`, count as the same action.
+- Client side: the agent remembers the **last** action executed successfully and does not repeat it.
+  The latest decision is the one that counts: 150 → 200 → 150 registers all three, so the server
+  ends with 150. Since comparison happens after normalization, `150` and `150.0`, or
+  `"Change  plan"` and `"Change plan"`, count as the same action.
 - Server side: every request carries a deterministic `Idempotency-Key` header
-  (hash of conversation + action). It covers the case the agent's memory cannot:
-  the request reaches the server but the response is lost (timeout) and is retried.
+  (hash of conversation + number of actions executed so far + action). It covers the case the
+  agent's memory cannot: the request reaches the server but the response is lost (timeout) and
+  is retried. A retry after a failure reuses the key; going back to an earlier action gets a new one.
 
 **A failure does not break the turn.** `Integration.execute` reports delivery
 problems as `ActionResult(success=False)` instead of raising. If the integration
